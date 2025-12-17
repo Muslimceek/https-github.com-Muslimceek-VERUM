@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TabBar } from './components/TabBar';
-import { generateVeraWord, generateVeraLetter, generateJournalResponse } from './services/geminiService';
-import { ScreenType, VERAContent, JournalEntry, SITUATIONS, LETTER_TYPES, LIBRARY_FILTERS } from './types';
+import { generateVeraWord, generateVeraLetter, generateJournalResponse, generateDailyMessage, generateVeraImage } from './services/geminiService';
+import { ScreenType, VERAContent, JournalEntry, SITUATIONS, LETTER_TYPES, LIBRARY_FILTERS, IMAGE_STYLES } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Background Component ---
@@ -52,6 +52,46 @@ const BreathingOverlay = ({ onClose, isNight }: { onClose: () => void; isNight: 
   );
 };
 
+// --- Daily Message Component ---
+const DailyMessageOverlay = ({ message, onClose, isNight }: { message: string, onClose: () => void, isNight: boolean }) => {
+    return (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-8 animate-fade-in backdrop-blur-3xl bg-vera-bg/90 dark:bg-vera-night/90">
+            <div className="absolute top-[-20%] right-[-20%] w-[600px] h-[600px] bg-vera-rose/20 rounded-full blur-3xl animate-pulse-slow"></div>
+            
+            <div className="relative z-10 flex flex-col items-center text-center max-w-md">
+                <span className="text-[10px] uppercase tracking-[0.3em] opacity-60 mb-6 animate-slide-up">
+                    Сегодня для тебя
+                </span>
+                
+                <div className="mb-12 space-y-4">
+                    {message.split('\n').map((line, i) => (
+                        <p 
+                            key={i} 
+                            className="font-serif text-2xl md:text-3xl leading-relaxed animate-delicate-reveal"
+                            style={{ animationDelay: `${i * 300}ms` }}
+                        >
+                            {line}
+                        </p>
+                    ))}
+                </div>
+
+                <div className="animate-fade-in" style={{ animationDelay: '1000ms' }}>
+                     <button 
+                        onClick={onClose}
+                        className={`px-8 py-3 rounded-full text-sm font-medium tracking-wide transition-all duration-300 hover:scale-105 ${isNight ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-vera-text text-vera-bg shadow-lg hover:shadow-xl'}`}
+                     >
+                        Принимаю
+                     </button>
+                </div>
+            </div>
+            
+             <div className="absolute bottom-10 opacity-30 text-[10px] tracking-widest font-mono">
+                {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+            </div>
+        </div>
+    );
+};
+
 function App() {
   // State
   const [screen, setScreen] = useState<ScreenType>('ONBOARDING');
@@ -62,11 +102,20 @@ function App() {
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [isBreathing, setIsBreathing] = useState(false);
   
+  // Daily Message State
+  const [dailyMessage, setDailyMessage] = useState<string | null>(null);
+  const [showDailyMessage, setShowDailyMessage] = useState(false);
+  
   // Content States
   const [currentWord, setCurrentWord] = useState<VERAContent | null>(null);
   const [journalInput, setJournalInput] = useState('');
   const [homeInput, setHomeInput] = useState(''); 
   const [selectedLetterType, setSelectedLetterType] = useState<string | null>(null);
+
+  // Image Generation States
+  const [imagePrompt, setImagePrompt] = useState('');
+  const [selectedImageStyle, setSelectedImageStyle] = useState(IMAGE_STYLES[0]);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
   // Refs needed for scrolling
   const journalEndRef = useRef<HTMLDivElement>(null);
@@ -95,6 +144,30 @@ function App() {
     else document.body.classList.remove('night-mode');
 
   }, [isNight]);
+
+  // Check for Daily Message (Only on Home screen, i.e., post-onboarding)
+  useEffect(() => {
+    const checkDailyMessage = async () => {
+        if (screen !== 'HOME') return;
+
+        const today = new Date().toDateString();
+        const lastViewed = localStorage.getItem('vera_daily_date');
+        
+        // If we haven't seen a message today
+        if (lastViewed !== today) {
+            try {
+                const msg = await generateDailyMessage();
+                setDailyMessage(msg);
+                setShowDailyMessage(true);
+            } catch (e) {
+                console.error("Failed to fetch daily message", e);
+            }
+        }
+    };
+    
+    // Only run if we are settled on HOME (e.g. after refresh or after onboarding finish)
+    checkDailyMessage();
+  }, [screen]);
   
   // Auto-advance Splash Screen
   useEffect(() => {
@@ -126,6 +199,11 @@ function App() {
       } else {
           handleOnboardingFinish();
       }
+  };
+
+  const handleCloseDailyMessage = () => {
+      setShowDailyMessage(false);
+      localStorage.setItem('vera_daily_date', new Date().toDateString());
   };
 
   const handleToggleNight = () => {
@@ -167,6 +245,20 @@ function App() {
       const text = await generateVeraLetter(type.label, isNight ? 'на ночь, очень мягко' : 'глубоко и искренне');
       setCurrentWord(createContentObject(text, 'letter', type.label));
       setSelectedLetterType(null); 
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!imagePrompt.trim()) return;
+    setLoading(true);
+    setGeneratedImageUrl(null);
+    try {
+      const url = await generateVeraImage(imagePrompt, selectedImageStyle.prompt);
+      setGeneratedImageUrl(url);
     } catch (e) {
       console.error(e);
     } finally {
@@ -486,6 +578,83 @@ function App() {
     );
   };
 
+  const renderImages = () => {
+    if (loading) return (
+        <div className="h-full flex flex-col items-center justify-center animate-breath z-10 relative">
+            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-vera-rose to-vera-caramel animate-spin blur-sm"></div>
+            <p className="mt-6 font-serif text-vera-text/50 tracking-widest text-sm">СОЗДАЮ ОБРАЗ...</p>
+        </div>
+    );
+
+    return (
+        <div className="h-full flex flex-col pt-12 px-6 pb-24 animate-fade-in overflow-y-auto z-10 relative">
+             <h2 className="font-serif text-3xl mb-2">Образы</h2>
+             <p className="text-sm opacity-60 mb-8">Опиши свое чувство, и я создам его образ.</p>
+
+             {/* Generated Image Result */}
+             {generatedImageUrl ? (
+                 <div className="flex-1 flex flex-col animate-slide-up">
+                    <div className="relative rounded-[32px] overflow-hidden shadow-2xl mb-6 bg-vera-text/5 aspect-square group">
+                        <img src={generatedImageUrl} alt="Generated" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                           <a href={generatedImageUrl} download="vera-image.png" className="p-3 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40 text-white transition-colors">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                           </a>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setGeneratedImageUrl(null)}
+                        className="self-center text-xs uppercase tracking-widest opacity-50 hover:opacity-100 p-2"
+                    >
+                        Создать другое
+                    </button>
+                 </div>
+             ) : (
+                 <>
+                    {/* Input */}
+                    <div className={`rounded-[24px] p-1 mb-8 backdrop-blur-sm ${isNight ? 'bg-white/5' : 'bg-white shadow-lg shadow-vera-rose/10'}`}>
+                        <textarea
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        placeholder="Море внутри меня, тихий свет..."
+                        className="w-full bg-transparent p-4 min-h-[100px] resize-none focus:outline-none text-lg font-serif placeholder:opacity-40"
+                        />
+                    </div>
+
+                    {/* Styles */}
+                    <div className="mb-10">
+                        <p className="text-[10px] uppercase tracking-widest opacity-40 mb-4 ml-1">СТИЛЬ</p>
+                        <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+                            {IMAGE_STYLES.map(style => (
+                                <button
+                                    key={style.id}
+                                    onClick={() => setSelectedImageStyle(style)}
+                                    className={`flex-shrink-0 px-5 py-3 rounded-full text-sm transition-all border ${selectedImageStyle.id === style.id 
+                                        ? (isNight ? 'bg-white text-vera-night border-white' : 'bg-vera-text text-white border-vera-text') 
+                                        : 'border-current opacity-50 hover:opacity-80'}`}
+                                >
+                                    {style.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mt-auto">
+                        <button 
+                            onClick={handleGenerateImage}
+                            disabled={!imagePrompt.trim()}
+                            className={`w-full py-5 rounded-[24px] font-medium text-base transition-all flex items-center justify-center gap-2 shadow-xl ${!imagePrompt.trim() ? 'opacity-50 cursor-not-allowed' : 'opacity-100 hover:scale-[1.02]'} ${isNight ? 'bg-vera-rose text-vera-night' : 'bg-vera-text text-white'}`}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            <span>Воплотить</span>
+                        </button>
+                    </div>
+                 </>
+             )}
+        </div>
+    );
+  };
+
   const renderJournal = () => (
     <div className="h-full pt-12 px-6 pb-24 flex flex-col animate-fade-in z-10 relative">
       <h2 className="font-serif text-3xl mb-6 flex-shrink-0">Дневник</h2>
@@ -589,9 +758,11 @@ function App() {
     <div className={`h-screen flex flex-col ${isNight ? 'text-[#EAE0D5]' : 'text-[#2A2A2A]'}`}>
       <LivingBackground isNight={isNight} />
       {isBreathing && <BreathingOverlay onClose={() => setIsBreathing(false)} isNight={isNight} />}
+      {showDailyMessage && dailyMessage && <DailyMessageOverlay message={dailyMessage} onClose={handleCloseDailyMessage} isNight={isNight} />}
       <div className="flex-1 relative overflow-hidden">
          {screen === 'HOME' && renderHome()}
          {screen === 'LETTERS' && renderLetters()}
+         {screen === 'IMAGES' && renderImages()}
          {screen === 'JOURNAL' && renderJournal()}
          {screen === 'LIBRARY' && renderLibrary()}
       </div>

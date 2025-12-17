@@ -92,3 +92,70 @@ export const generateJournalResponse = async (userText: string): Promise<string>
 
   return response.text?.trim() || "Я слышу тебя...";
 };
+
+export const generateDailyMessage = async (): Promise<string> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    const fallbacks = [
+      "Сегодня можно никуда не спешить.\nТы всё равно вовремя.",
+      "Твоя усталость — это не слабость.\nЭто просьба о тишине.",
+      "Позволь себе просто быть.\nЭтого достаточно.",
+      "Слушай себя.\nТвое сердце знает дорогу."
+    ];
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+  Придумай "Фразу дня" для девушки.
+  ОЧЕНЬ КОРОТКО. Максимум 2 предложения.
+  Без поучений. Только принятие и тепло.
+  Пример: "Сегодня можно никуда не спешить. Ты всё равно вовремя."
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 1.1 },
+    });
+    return response.text?.trim() || "Сегодня твой день.";
+  } catch (e) {
+    console.error(e);
+    return "Сегодня можно никуда не спешить.\nТы всё равно вовремя.";
+  }
+};
+
+export const generateVeraImage = async (userPrompt: string, stylePrompt: string): Promise<string | null> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Key not found");
+  const ai = new GoogleGenAI({ apiKey });
+
+  // Construct a prompt that enforces the VERA aesthetic
+  const fullPrompt = `Create an artistic, soft, high-quality illustration based on this feeling/concept: "${userPrompt}". 
+  Style: ${stylePrompt}. 
+  Aesthetic: Gentle, muted tones, emotional, elegant, minimalist background, warm lighting. High resolution.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: fullPrompt }],
+      },
+    });
+
+    // Check all parts for inlineData (the image)
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          return `data:image/png;base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("Image generation failed", e);
+    throw e;
+  }
+};
