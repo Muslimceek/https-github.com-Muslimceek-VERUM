@@ -30,6 +30,21 @@ const SYSTEM_INSTRUCTION = `
 Этого достаточно.
 `;
 
+// Helper to handle 503 Overloaded errors automatically
+async function withRetry<T>(operation: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    const isOverloaded = error.toString().includes('503') || error.toString().includes('Overloaded');
+    if (isOverloaded && retries > 0) {
+      console.log(`Server overloaded, retrying in ${delay}ms... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return withRetry(operation, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
 export const generateVeraWord = async (situation: string): Promise<string> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key not found");
@@ -41,13 +56,14 @@ export const generateVeraWord = async (situation: string): Promise<string> => {
   Напиши 3-4 коротких блока.
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.9 },
+  return withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.9 },
+    });
+    return response.text?.trim() || "Тишина...";
   });
-
-  return response.text?.trim() || "Тишина...";
 };
 
 export const generateVeraLetter = async (typeLabel: string, settings: string): Promise<string> => {
@@ -61,13 +77,14 @@ export const generateVeraLetter = async (typeLabel: string, settings: string): P
   Это должно быть длиннее, чем обычное слово (5-7 блоков), но так же воздушно.
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 1.0 },
+  return withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 1.0 },
+    });
+    return response.text?.trim() || "Тишина...";
   });
-
-  return response.text?.trim() || "Тишина...";
 };
 
 export const generateJournalResponse = async (userText: string): Promise<string> => {
@@ -84,18 +101,20 @@ export const generateJournalResponse = async (userText: string): Promise<string>
   Ответ: 3 коротких блока.
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 },
+  return withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 },
+    });
+    return response.text?.trim() || "Я слышу тебя...";
   });
-
-  return response.text?.trim() || "Я слышу тебя...";
 };
 
 export const generateDailyMessage = async (): Promise<string> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
+    // Fallbacks if no key provided
     const fallbacks = [
       "Сегодня можно никуда не спешить.\nТы всё равно вовремя.",
       "Твоя усталость — это не слабость.\nЭто просьба о тишине.",
@@ -115,12 +134,14 @@ export const generateDailyMessage = async (): Promise<string> => {
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 1.1 },
+    return await withRetry(async () => {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 1.1 },
+      });
+      return response.text?.trim() || "Сегодня твой день.";
     });
-    return response.text?.trim() || "Сегодня твой день.";
   } catch (e) {
     console.error(e);
     return "Сегодня можно никуда не спешить.\nТы всё равно вовремя.";
@@ -137,25 +158,27 @@ export const generateVeraImage = async (userPrompt: string, stylePrompt: string)
   Style: ${stylePrompt}. 
   Aesthetic: Gentle, muted tones, emotional, elegant, minimalist background, warm lighting. High resolution.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: fullPrompt }],
-      },
-    });
+  return withRetry(async () => {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: {
+          parts: [{ text: fullPrompt }],
+        },
+      });
 
-    // Check all parts for inlineData (the image)
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:image/png;base64,${part.inlineData.data}`;
+      // Check all parts for inlineData (the image)
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            return `data:image/png;base64,${part.inlineData.data}`;
+          }
         }
       }
+      return null;
+    } catch (e) {
+      console.error("Image generation attempt failed", e);
+      throw e;
     }
-    return null;
-  } catch (e) {
-    console.error("Image generation failed", e);
-    throw e;
-  }
+  });
 };

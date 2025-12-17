@@ -266,9 +266,9 @@ function App() {
       // Handle Quota limits nicely
       const msg = e.toString();
       if (msg.includes('429') || msg.includes('quota')) {
-          setGenerationError("Муза устала (превышен лимит запросов). Пожалуйста, подождите минутку и попробуйте снова.");
+          setGenerationError("Google ограничил доступ (лимит бесплатного тарифа). Пожалуйста, подождите пару минут.");
       } else if (msg.includes('503')) {
-           setGenerationError("Сервер перегружен. Попробуйте чуть позже.");
+           setGenerationError("Сервер Google перегружен. Попробуйте чуть позже.");
       } else {
           setGenerationError("Что-то пошло не так. Попробуйте еще раз.");
       }
