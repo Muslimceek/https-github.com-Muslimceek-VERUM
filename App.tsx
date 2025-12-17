@@ -272,6 +272,46 @@ function App() {
     }
   };
 
+  const handleDownloadImage = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `vera-art-${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error("Download failed", e);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleShareImage = async (url: string) => {
+    if (navigator.share) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const file = new File([blob], 'vera-image.jpg', { type: 'image/jpeg' });
+        await navigator.share({
+          files: [file],
+          title: 'Мой образ в VERA',
+        });
+      } catch (e) {
+        console.error("Share failed", e);
+        // Fallback to clipboard
+        navigator.clipboard.writeText(url);
+        alert("Ссылка скопирована");
+      }
+    } else {
+        navigator.clipboard.writeText(url);
+        alert("Ссылка скопирована");
+    }
+  };
+
   const handleJournalSubmit = async () => {
     if (!journalInput.trim()) return;
     setLoading(true);
@@ -593,9 +633,11 @@ function App() {
     );
 
     return (
-        <div className="h-full flex flex-col pt-12 px-6 pb-24 animate-fade-in overflow-y-auto z-10 relative">
-             <h2 className="font-serif text-3xl mb-2">Образы</h2>
-             <p className="text-sm opacity-60 mb-8">Опиши свое чувство, и я создам его образ.</p>
+        <div className="h-full flex flex-col pt-8 px-6 pb-24 animate-fade-in overflow-y-auto z-10 relative">
+             <div className="mb-6">
+                <h2 className="font-serif text-4xl mb-2 text-vera-text">Образы</h2>
+                <p className="text-sm opacity-60 max-w-xs leading-relaxed">Создай визуальное отражение своих чувств.</p>
+             </div>
 
              {/* Error Message */}
              {generationError && (
@@ -608,12 +650,13 @@ function App() {
              {/* Generated Image Result */}
              {generatedImageUrl ? (
                  <div className="flex-1 flex flex-col animate-slide-up">
-                    <div className="relative rounded-[32px] overflow-hidden shadow-2xl mb-6 bg-vera-text/5 aspect-square group">
+                    {/* Image Card */}
+                    <div className="relative rounded-[32px] overflow-hidden shadow-2xl mb-8 bg-vera-text/5 aspect-[4/5] group w-full max-w-sm mx-auto">
                         
-                        {/* Image Loader */}
+                        {/* Image Loader overlay */}
                         {isImageLoading && (
-                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-vera-bg/50 backdrop-blur-sm">
-                                <div className="w-8 h-8 rounded-full border-2 border-vera-rose border-t-transparent animate-spin mb-4"></div>
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-vera-bg/80 backdrop-blur-md">
+                                <div className="w-10 h-10 rounded-full border-2 border-vera-rose border-t-transparent animate-spin mb-4"></div>
                                 <span className="text-[10px] uppercase tracking-widest opacity-60">Рисую...</span>
                             </div>
                         )}
@@ -625,62 +668,87 @@ function App() {
                             onLoad={() => setIsImageLoading(false)}
                             onError={() => {
                                 setIsImageLoading(false);
-                                setGenerationError("Не удалось загрузить изображение. Попробуйте еще раз.");
+                                setGenerationError("Не удалось загрузить изображение.");
                             }}
                         />
-
-                        {!isImageLoading && (
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                               <a href={generatedImageUrl} download="vera-image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40 text-white transition-colors">
-                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                               </a>
-                            </div>
-                        )}
                     </div>
-                    <button 
-                        onClick={() => setGeneratedImageUrl(null)}
-                        className="self-center text-xs uppercase tracking-widest opacity-50 hover:opacity-100 p-2"
-                    >
-                        Создать другое
-                    </button>
+                    
+                    {/* Action Buttons Row */}
+                    <div className="flex justify-center items-center gap-4 mb-4">
+                         {/* Download */}
+                         <button 
+                            onClick={() => handleDownloadImage(generatedImageUrl)}
+                            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform ${isNight ? 'bg-white/10 hover:bg-white/20' : 'bg-white hover:bg-gray-50'}`}
+                            title="Скачать"
+                         >
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                         </button>
+
+                         {/* Share */}
+                         <button 
+                            onClick={() => handleShareImage(generatedImageUrl)}
+                            className={`flex-1 h-14 rounded-full flex items-center justify-center gap-2 font-medium shadow-xl active:scale-95 transition-all ${isNight ? 'bg-vera-rose text-vera-night' : 'bg-vera-text text-white'}`}
+                         >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                            <span>Поделиться</span>
+                         </button>
+
+                         {/* Close/Retry */}
+                         <button 
+                             onClick={() => setGeneratedImageUrl(null)}
+                             className={`w-14 h-14 rounded-full flex items-center justify-center opacity-60 hover:opacity-100 ${isNight ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                             title="Закрыть"
+                         >
+                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                         </button>
+                    </div>
                  </div>
              ) : (
                  <>
-                    {/* Input */}
-                    <div className={`rounded-[24px] p-1 mb-8 backdrop-blur-sm ${isNight ? 'bg-white/5' : 'bg-white shadow-lg shadow-vera-rose/10'}`}>
+                    {/* Prompt Input */}
+                    <div className={`rounded-[28px] p-2 mb-8 backdrop-blur-sm transition-all focus-within:shadow-xl ${isNight ? 'bg-white/5' : 'bg-white shadow-lg shadow-vera-rose/10'}`}>
                         <textarea
-                        value={imagePrompt}
-                        onChange={(e) => { setImagePrompt(e.target.value); setGenerationError(null); }}
-                        placeholder="Море внутри меня, тихий свет..."
-                        className="w-full bg-transparent p-4 min-h-[100px] resize-none focus:outline-none text-lg font-serif placeholder:opacity-40"
+                            value={imagePrompt}
+                            onChange={(e) => { setImagePrompt(e.target.value); setGenerationError(null); }}
+                            placeholder="Опиши свой сон, чувство или мечту..."
+                            className="w-full bg-transparent p-4 min-h-[140px] resize-none focus:outline-none text-xl font-serif placeholder:opacity-40 leading-relaxed"
                         />
                     </div>
 
-                    {/* Styles */}
+                    {/* Style Selector - Horizontal Scroll */}
                     <div className="mb-10">
-                        <p className="text-[10px] uppercase tracking-widest opacity-40 mb-4 ml-1">СТИЛЬ</p>
-                        <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+                        <div className="flex items-center justify-between mb-4 px-2">
+                             <p className="text-[10px] uppercase tracking-widest opacity-40">СТИЛЬ</p>
+                             <span className="text-xs font-serif opacity-60">{selectedImageStyle.label}</span>
+                        </div>
+                        
+                        <div className="flex gap-3 overflow-x-auto pb-6 -mx-6 px-6 no-scrollbar snap-x">
                             {IMAGE_STYLES.map(style => (
                                 <button
                                     key={style.id}
                                     onClick={() => setSelectedImageStyle(style)}
-                                    className={`flex-shrink-0 px-5 py-3 rounded-full text-sm transition-all border ${selectedImageStyle.id === style.id 
-                                        ? (isNight ? 'bg-white text-vera-night border-white' : 'bg-vera-text text-white border-vera-text') 
-                                        : 'border-current opacity-50 hover:opacity-80'}`}
+                                    className={`snap-start flex-shrink-0 h-24 w-24 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden group border ${selectedImageStyle.id === style.id 
+                                        ? (isNight ? 'border-white bg-white/10' : 'border-vera-text bg-vera-text/5 scale-105 shadow-md') 
+                                        : 'border-transparent bg-white/40 hover:bg-white/60'}`}
                                 >
-                                    {style.label}
+                                    {/* Visual representation of style (simplified) */}
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedImageStyle.id === style.id ? 'bg-vera-text text-white' : 'bg-black/5'}`}>
+                                       {style.label[0]}
+                                    </div>
+                                    <span className="text-[10px] font-medium opacity-80">{style.label}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className="mt-auto">
+                    {/* Generate Button */}
+                    <div className="mt-auto pb-4">
                         <button 
                             onClick={handleGenerateImage}
                             disabled={!imagePrompt.trim()}
-                            className={`w-full py-5 rounded-[24px] font-medium text-base transition-all flex items-center justify-center gap-2 shadow-xl ${!imagePrompt.trim() ? 'opacity-50 cursor-not-allowed' : 'opacity-100 hover:scale-[1.02]'} ${isNight ? 'bg-vera-rose text-vera-night' : 'bg-vera-text text-white'}`}
+                            className={`w-full py-5 rounded-[28px] font-medium text-lg transition-all flex items-center justify-center gap-3 shadow-xl ${!imagePrompt.trim() ? 'opacity-50 cursor-not-allowed' : 'opacity-100 hover:scale-[1.02] active:scale-[0.98]'} ${isNight ? 'bg-vera-rose text-vera-night' : 'bg-vera-text text-white'}`}
                         >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
                             <span>Воплотить</span>
                         </button>
                     </div>

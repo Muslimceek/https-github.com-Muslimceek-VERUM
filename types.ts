@@ -1,3 +1,4 @@
+
 export type ScreenType = 'ONBOARDING' | 'HOME' | 'LETTERS' | 'IMAGES' | 'JOURNAL' | 'LIBRARY';
 
 export interface VERAContent {
@@ -34,11 +35,14 @@ export const LETTER_TYPES = [
 ];
 
 export const IMAGE_STYLES = [
-  { id: 'watercolor', label: 'Акварель', prompt: 'Soft watercolor painting, pastel colors, dreamy, wet on wet technique' },
+  { id: 'none', label: 'Свободный', prompt: 'high quality, detailed, 8k' },
+  { id: 'realistic', label: 'Реализм', prompt: 'photorealistic, 8k, highly detailed, cinematic lighting, photography, shot on 35mm lens, depth of field' },
+  { id: '3d', label: '3D Рендер', prompt: '3d render, unreal engine 5, octane render, isometric, cute, plastic texture, soft lighting, pixar style' },
+  { id: 'watercolor', label: 'Акварель', prompt: 'Soft watercolor painting, pastel colors, dreamy, wet on wet technique, artstation' },
   { id: 'oil', label: 'Масло', prompt: 'Oil painting, textured, warm lighting, expressive strokes, classical art style' },
-  { id: 'pencil', label: 'Эскиз', prompt: 'Charcoal sketch on textured paper, minimalist, emotional, soft lines' },
   { id: 'dream', label: 'Сон', prompt: 'Surreal, cloudy, soft focus, magical realism, ethereal light, pastel gradient' },
-  { id: 'nature', label: 'Природа', prompt: 'Botanical illustration, organic shapes, flowers and leaves, calming green and beige tones' },
+  { id: 'anime', label: 'Аниме', prompt: 'Anime style, studio ghibli, makoto shinkai, detailed background, atmospheric' },
+  { id: 'nature', label: 'Ботаника', prompt: 'Botanical illustration, organic shapes, flowers and leaves, calming green and beige tones, minimalist' },
 ];
 
 export const LIBRARY_FILTERS = ['Все', 'Любовь', 'Боль', 'Тишина', 'Сила'];
