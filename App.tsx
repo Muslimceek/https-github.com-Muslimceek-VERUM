@@ -117,6 +117,7 @@ function App() {
   const [selectedImageStyle, setSelectedImageStyle] = useState(IMAGE_STYLES[0]);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   // Refs needed for scrolling
   const journalEndRef = useRef<HTMLDivElement>(null);
@@ -259,19 +260,13 @@ function App() {
     setGeneratedImageUrl(null);
     setGenerationError(null);
     try {
+      // Pollinations works without key, but can be slow to start render
       const url = await generateVeraImage(imagePrompt, selectedImageStyle.prompt);
       setGeneratedImageUrl(url);
+      setIsImageLoading(true); // Start showing image loader immediately
     } catch (e: any) {
       console.error(e);
-      // Handle Quota limits nicely
-      const msg = e.toString();
-      if (msg.includes('429') || msg.includes('quota')) {
-          setGenerationError("Google ограничил доступ (лимит бесплатного тарифа). Пожалуйста, подождите пару минут.");
-      } else if (msg.includes('503')) {
-           setGenerationError("Сервер Google перегружен. Попробуйте чуть позже.");
-      } else {
-          setGenerationError("Что-то пошло не так. Попробуйте еще раз.");
-      }
+      setGenerationError("Не удалось создать образ. Пожалуйста, попробуйте еще раз.");
     } finally {
       setLoading(false);
     }
@@ -593,7 +588,7 @@ function App() {
     if (loading) return (
         <div className="h-full flex flex-col items-center justify-center animate-breath z-10 relative">
             <div className="w-4 h-4 rounded-full bg-gradient-to-r from-vera-rose to-vera-caramel animate-spin blur-sm"></div>
-            <p className="mt-6 font-serif text-vera-text/50 tracking-widest text-sm">СОЗДАЮ ОБРАЗ...</p>
+            <p className="mt-6 font-serif text-vera-text/50 tracking-widest text-sm">ПОДБИРАЮ КРАСКИ...</p>
         </div>
     );
 
@@ -614,12 +609,33 @@ function App() {
              {generatedImageUrl ? (
                  <div className="flex-1 flex flex-col animate-slide-up">
                     <div className="relative rounded-[32px] overflow-hidden shadow-2xl mb-6 bg-vera-text/5 aspect-square group">
-                        <img src={generatedImageUrl} alt="Generated" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                           <a href={generatedImageUrl} download="vera-image.png" className="p-3 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40 text-white transition-colors">
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                           </a>
-                        </div>
+                        
+                        {/* Image Loader */}
+                        {isImageLoading && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-vera-bg/50 backdrop-blur-sm">
+                                <div className="w-8 h-8 rounded-full border-2 border-vera-rose border-t-transparent animate-spin mb-4"></div>
+                                <span className="text-[10px] uppercase tracking-widest opacity-60">Рисую...</span>
+                            </div>
+                        )}
+                        
+                        <img 
+                            src={generatedImageUrl} 
+                            alt="Generated" 
+                            className={`w-full h-full object-cover transition-opacity duration-700 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
+                            onLoad={() => setIsImageLoading(false)}
+                            onError={() => {
+                                setIsImageLoading(false);
+                                setGenerationError("Не удалось загрузить изображение. Попробуйте еще раз.");
+                            }}
+                        />
+
+                        {!isImageLoading && (
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                               <a href={generatedImageUrl} download="vera-image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/40 text-white transition-colors">
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                               </a>
+                            </div>
+                        )}
                     </div>
                     <button 
                         onClick={() => setGeneratedImageUrl(null)}

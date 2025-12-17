@@ -149,7 +149,7 @@ export const generateDailyMessage = async (): Promise<string> => {
 
 // SWITCHED TO POLLINATIONS AI (UNLIMITED, FREE)
 export const generateVeraImage = async (userPrompt: string, stylePrompt: string): Promise<string | null> => {
-  // We do NOT use Gemini API key here anymore.
+  // No API Key required for Pollinations
   
   try {
     // Generate a random seed to ensure uniqueness even with same prompts
@@ -161,24 +161,14 @@ export const generateVeraImage = async (userPrompt: string, stylePrompt: string)
     );
 
     // Pollinations AI URL (Free, Unlimited, No Key required)
-    // Using 'flux' model for better artistic quality, or default
     const url = `https://image.pollinations.ai/prompt/${enhancedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
 
-    // We add a small artificial delay so the UI feels responsive (instant images sometimes feel like bugs)
-    // and to allow the browser to start pre-fetching
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Pre-validate that the URL works (fetch head)
-    const check = await fetch(url, { method: 'HEAD' });
-    if (check.ok) {
-        return url;
-    } else {
-        throw new Error("Image service unavailable");
-    }
+    // We return the URL directly. The browser will handle loading it.
+    // We do NOT perform a HEAD request here anymore to avoid CORS issues on mobile devices.
+    return url;
 
   } catch (e) {
     console.error("Image generation attempt failed", e);
-    // Fallback or re-throw
     throw e;
   }
 };
