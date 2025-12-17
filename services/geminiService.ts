@@ -30,7 +30,7 @@ const SYSTEM_INSTRUCTION = `
 Этого достаточно.
 `;
 
-// Helper to handle 503 Overloaded errors automatically
+// Helper to handle 503 Overloaded errors automatically for TEXT only
 async function withRetry<T>(operation: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
   try {
     return await operation();
@@ -114,7 +114,6 @@ export const generateJournalResponse = async (userText: string): Promise<string>
 export const generateDailyMessage = async (): Promise<string> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    // Fallbacks if no key provided
     const fallbacks = [
       "Сегодня можно никуда не спешить.\nТы всё равно вовремя.",
       "Твоя усталость — это не слабость.\nЭто просьба о тишине.",
@@ -148,37 +147,38 @@ export const generateDailyMessage = async (): Promise<string> => {
   }
 };
 
+// SWITCHED TO POLLINATIONS AI (UNLIMITED, FREE)
 export const generateVeraImage = async (userPrompt: string, stylePrompt: string): Promise<string | null> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key not found");
-  const ai = new GoogleGenAI({ apiKey });
+  // We do NOT use Gemini API key here anymore.
+  
+  try {
+    // Generate a random seed to ensure uniqueness even with same prompts
+    const seed = Math.floor(Math.random() * 10000000);
+    
+    // Construct a rich artistic prompt
+    const enhancedPrompt = encodeURIComponent(
+      `artistic aesthetic illustration, ${userPrompt}, ${stylePrompt}, soft lighting, dreamy atmosphere, elegant, minimalist, high quality, 8k, detailed texture`
+    );
 
-  // Construct a prompt that enforces the VERA aesthetic
-  const fullPrompt = `Create an artistic, soft, high-quality illustration based on this feeling/concept: "${userPrompt}". 
-  Style: ${stylePrompt}. 
-  Aesthetic: Gentle, muted tones, emotional, elegant, minimalist background, warm lighting. High resolution.`;
+    // Pollinations AI URL (Free, Unlimited, No Key required)
+    // Using 'flux' model for better artistic quality, or default
+    const url = `https://image.pollinations.ai/prompt/${enhancedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
 
-  return withRetry(async () => {
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [{ text: fullPrompt }],
-        },
-      });
-
-      // Check all parts for inlineData (the image)
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData && part.inlineData.data) {
-            return `data:image/png;base64,${part.inlineData.data}`;
-          }
-        }
-      }
-      return null;
-    } catch (e) {
-      console.error("Image generation attempt failed", e);
-      throw e;
+    // We add a small artificial delay so the UI feels responsive (instant images sometimes feel like bugs)
+    // and to allow the browser to start pre-fetching
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Pre-validate that the URL works (fetch head)
+    const check = await fetch(url, { method: 'HEAD' });
+    if (check.ok) {
+        return url;
+    } else {
+        throw new Error("Image service unavailable");
     }
-  });
+
+  } catch (e) {
+    console.error("Image generation attempt failed", e);
+    // Fallback or re-throw
+    throw e;
+  }
 };
