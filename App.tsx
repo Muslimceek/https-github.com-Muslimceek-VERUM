@@ -116,6 +116,7 @@ function App() {
   const [imagePrompt, setImagePrompt] = useState('');
   const [selectedImageStyle, setSelectedImageStyle] = useState(IMAGE_STYLES[0]);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Refs needed for scrolling
   const journalEndRef = useRef<HTMLDivElement>(null);
@@ -256,11 +257,21 @@ function App() {
     if (!imagePrompt.trim()) return;
     setLoading(true);
     setGeneratedImageUrl(null);
+    setGenerationError(null);
     try {
       const url = await generateVeraImage(imagePrompt, selectedImageStyle.prompt);
       setGeneratedImageUrl(url);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      // Handle Quota limits nicely
+      const msg = e.toString();
+      if (msg.includes('429') || msg.includes('quota')) {
+          setGenerationError("Муза устала (превышен лимит запросов). Пожалуйста, подождите минутку и попробуйте снова.");
+      } else if (msg.includes('503')) {
+           setGenerationError("Сервер перегружен. Попробуйте чуть позже.");
+      } else {
+          setGenerationError("Что-то пошло не так. Попробуйте еще раз.");
+      }
     } finally {
       setLoading(false);
     }
@@ -591,6 +602,14 @@ function App() {
              <h2 className="font-serif text-3xl mb-2">Образы</h2>
              <p className="text-sm opacity-60 mb-8">Опиши свое чувство, и я создам его образ.</p>
 
+             {/* Error Message */}
+             {generationError && (
+                 <div className="mb-6 p-4 rounded-2xl bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 text-center animate-slide-up">
+                    <p className="text-red-800 dark:text-red-200 font-serif mb-1 text-lg">Муза отдыхает</p>
+                    <p className="text-xs opacity-70">{generationError}</p>
+                 </div>
+             )}
+
              {/* Generated Image Result */}
              {generatedImageUrl ? (
                  <div className="flex-1 flex flex-col animate-slide-up">
@@ -615,7 +634,7 @@ function App() {
                     <div className={`rounded-[24px] p-1 mb-8 backdrop-blur-sm ${isNight ? 'bg-white/5' : 'bg-white shadow-lg shadow-vera-rose/10'}`}>
                         <textarea
                         value={imagePrompt}
-                        onChange={(e) => setImagePrompt(e.target.value)}
+                        onChange={(e) => { setImagePrompt(e.target.value); setGenerationError(null); }}
                         placeholder="Море внутри меня, тихий свет..."
                         className="w-full bg-transparent p-4 min-h-[100px] resize-none focus:outline-none text-lg font-serif placeholder:opacity-40"
                         />
