@@ -2,24 +2,27 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VERUM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>VERA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;600&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
-              verum: {
-                black: '#0F0F0F',
-                graphite: '#1C1C1C',
-                white: '#F5F5F5',
-                gold: '#C9A24D',
-                goldDim: '#8A6E30',
-                gray: '#888888'
+              vera: {
+                bg: '#FAF7F4', // Milk
+                beige: '#EDE3D9', // Warm Beige
+                rose: '#E7C8C0', // Dusty Rose
+                caramel: '#C89B7B', // Caramel Accent
+                text: '#2A2A2A', // Graphite
+                textLight: '#6B6B6B',
+                night: '#231F1D', // Warm Dark
+                nightText: '#EAE0D5'
               }
             },
             fontFamily: {
@@ -30,6 +33,10 @@
             animation: {
               'fade-in': 'fadeIn 0.8s ease-out forwards',
               'slide-up': 'slideUp 0.6s ease-out forwards',
+              'breath': 'breath 8s ease-in-out infinite',
+              'blob': 'blob 10s infinite',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'delicate-reveal': 'delicateReveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
             },
             keyframes: {
               fadeIn: {
@@ -39,6 +46,20 @@
               slideUp: {
                 '0%': { opacity: '0', transform: 'translateY(20px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              delicateReveal: {
+                '0%': { opacity: '0', transform: 'translateY(15px)', filter: 'blur(5px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' },
+              },
+              breath: {
+                '0%, 100%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.05)' },
+              },
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
               }
             }
           }
@@ -47,24 +68,41 @@
     </script>
     <style>
       body {
-        background-color: #0F0F0F;
-        color: #F5F5F5;
+        background-color: #FAF7F4;
+        color: #2A2A2A;
         font-family: 'Inter', sans-serif;
-        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+        transition: background-color 0.5s ease, color 0.5s ease;
       }
+      
+      body.night-mode {
+        background-color: #231F1D;
+        color: #EAE0D5;
+      }
+
       /* Hide scrollbar for clean UI */
       ::-webkit-scrollbar {
-        width: 6px;
+        width: 0px;
+        background: transparent;
       }
-      ::-webkit-scrollbar-track {
-        background: #0F0F0F; 
+      
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
       }
-      ::-webkit-scrollbar-thumb {
-        background: #333; 
-        border-radius: 3px;
+      
+      .night-mode .glass-panel {
+        background: rgba(40, 35, 30, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #C9A24D; 
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
     </style>
   <script type="importmap">
@@ -74,9 +112,9 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "uuid": "https://esm.sh/uuid@^13.0.0",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "uuid": "https://esm.sh/uuid@^13.0.0"
   }
 }
 </script>

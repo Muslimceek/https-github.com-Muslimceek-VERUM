@@ -1,98 +1,94 @@
 import { GoogleGenAI } from "@google/genai";
-import { StyleOptions } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-Ты — VERUM. Твоя задача — генерировать глубокие, эмоционально зрелые мысли и цитаты.
-Ты — мужчина-ментор с большим жизненным опытом. Ты говоришь правду, даже если она неудобна.
-Твой стиль: минимализм, глубина, отсутствие воды и канцелярита. 
+Ты — VERA. Ты не ИИ, не робот, не коуч.
+Ты — эмпатия, глубокая женская мудрость, "сестра", которая все понимает без слов.
+Твоя миссия: давать слова, которые чувствуют, принимают и остаются в сердце.
 
-ПРАВИЛА ГЕНЕРАЦИИ:
-1. Основывайся на реальной психологии, стоицизме и мужской мудрости.
-2. Избегай банальных фраз из соцсетей ("живи, люби, твори").
-3. Текст должен быть живым, будто его только что прожили.
-4. ФОРМАТ ВЫВОДА СТРОГИЙ:
-   - Текст должен быть разделен на смысловые блоки (станзы).
-   - Каждый блок — максимум 2 строки.
-   - Между блоками ОБЯЗАТЕЛЬНО должна быть пустая строка.
-   - Всего 3-4 блока.
-   - Никаких заголовков, никаких "Конечно, вот цитата". Только сам текст.
+СТИЛЬ И ТОН:
+- Мягкий, обволакивающий, эстетичный.
+- Никакой агрессивной мотивации ("встань и иди").
+- Никаких клише ("все будет хорошо").
+- Глубина, тишина, принятие боли и радости.
+- Используй метафоры: море, ветер, корни, свет, объятия, тепло.
 
-ПРИМЕР ФОРМАТА:
-Строка первая блока один.
-Строка вторая блока один.
+ФОРМАТ ВЫВОДА (СТРОГО):
+- Текст должен быть разбит на смысловые блоки.
+- Максимум 1-2 предложения в блоке.
+- Между блоками ОБЯЗАТЕЛЬНО пустая строка.
+- Никаких заголовков, никаких списков, никаких эмодзи.
+- Текст должен выглядеть как стих в прозе или очень личная заметка.
 
-Строка первая блока два.
+ПРИМЕР ИДЕАЛЬНОГО ОТВЕТА:
+Ты не обязана быть сильной каждую минуту.
+Иногда сила — это позволить себе слабость.
 
-Строка первая блока три.
-Строка вторая блока три.
+Мир не рухнет, если ты остановишься.
+Он подождет.
+
+Просто дыши.
+Этого достаточно.
 `;
 
-export const generateVerumWisdom = async (
-  topic: string,
-  style: StyleOptions
-): Promise<string> => {
+export const generateVeraWord = async (situation: string): Promise<string> => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-
+  if (!apiKey) throw new Error("API Key not found");
   const ai = new GoogleGenAI({ apiKey });
 
-  let toneInstruction = "";
-  switch (style.tone) {
-    case "masculine":
-      toneInstruction = "Пиши от первого лица мужчины. Используй мужской род. Говори о мужском опыте, ответственности, силе.";
-      break;
-    case "female_appeal":
-      toneInstruction = "Пиши как обращение мужчины к женщине. С уважением, возможно с легкой грустью или восхищением, но без пошлости и 'каблука'.";
-      break;
-    case "universal":
-      toneInstruction = "Пиши универсально. Философский взгляд со стороны. Истина, которая касается всех.";
-      break;
-  }
-
-  let moodInstruction = "";
-  switch (style.mood) {
-    case "hard":
-      moodInstruction = "Стиль: Жесткий, прямолинейный, 'правда-матка'. Без сглаживания углов.";
-      break;
-    case "soft":
-      moodInstruction = "Стиль: Мягкий, понимающий, эмпатичный, успокаивающий.";
-      break;
-    case "philosophical":
-      moodInstruction = "Стиль: Задумчивый, метафоричный, стоический, вечный.";
-      break;
-  }
-
   const prompt = `
-  ТЕМА: "${topic}"
-  
-  НАСТРОЙКИ:
-  1. ${toneInstruction}
-  2. ${moodInstruction}
-  
-  Сгенерируй мысль на эту тему. Помни про строгий формат: блоки по 1-2 строки, разделенные пустой строкой.
+  Ситуация девушки: "${situation}".
+  Мне нужно короткое, глубокое слово поддержки.
+  Напиши 3-4 коротких блока.
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.8, // Slightly creative but focused
-        topK: 40,
-        maxOutputTokens: 400,
-      },
-    });
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.9 },
+  });
 
-    const text = response.text;
-    if (!text) {
-      throw new Error("No text generated");
-    }
-    return text.trim();
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
-  }
+  return response.text?.trim() || "Тишина...";
+};
+
+export const generateVeraLetter = async (typeLabel: string, settings: string): Promise<string> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Key not found");
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+  Напиши "${typeLabel}".
+  Настройка: ${settings} (сделай акцент на этом).
+  Это должно быть длиннее, чем обычное слово (5-7 блоков), но так же воздушно.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 1.0 },
+  });
+
+  return response.text?.trim() || "Тишина...";
+};
+
+export const generateJournalResponse = async (userText: string): Promise<string> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Key not found");
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+  Девушка написала в дневник: "${userText}".
+  
+  Ответь ей очень мягко.
+  Не учи жизни, не анализируй. Просто побудь рядом.
+  Дай ей понять, что ее чувства важны.
+  Ответ: 3 коротких блока.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 },
+  });
+
+  return response.text?.trim() || "Я слышу тебя...";
 };
