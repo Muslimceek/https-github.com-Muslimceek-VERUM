@@ -19,11 +19,15 @@ declare global {
     Telegram?: {
       WebApp: any;
     };
+    amplitude?: any;
   }
 }
 
+// Конфигурация администратора
+const BOT_TOKEN = '8431005222:AAGlTSFs_g6YlE0bHDyMpg-MrHF_C59XsMs';
+const ADMIN_CHAT_ID = '1788817433'; 
+
 function App() {
-  // State
   const [screen, setScreen] = useState<ScreenType>('ONBOARDING');
   const [isNight, setIsNight] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -31,29 +35,66 @@ function App() {
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [isBreathing, setIsBreathing] = useState(false);
   const [userName, setUserName] = useState<string>('');
+  const [userId, setUserId] = useState<number | null>(null);
   
-  // Daily Message State
   const [dailyMessage, setDailyMessage] = useState<string | null>(null);
   const [showDailyMessage, setShowDailyMessage] = useState(false);
-  
-  // Content States
   const [currentWord, setCurrentWord] = useState<VERAContent | null>(null);
 
-  // Initialization & Telegram Check
+  const logEvent = (eventName: string, props?: object) => {
+    if (window.amplitude && typeof window.amplitude.getInstance === 'function') {
+      try {
+        window.amplitude.getInstance().logEvent(eventName, props);
+      } catch (e) {
+        console.warn("Amplitude log error:", e);
+      }
+    }
+  };
+
   useEffect(() => {
-    // 1. Initialize Telegram WebApp
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.ready();
       tg.expand();
       
-      // Get user name from Telegram
-      if (tg.initDataUnsafe?.user?.first_name) {
-        setUserName(tg.initDataUnsafe.user.first_name);
+      const user = tg.initDataUnsafe?.user;
+      if (user) {
+        setUserName(user.first_name);
+        setUserId(user.id);
+
+        if (window.amplitude && typeof window.amplitude.getInstance === 'function') {
+          try {
+            const amp = window.amplitude.getInstance();
+            amp.setUserId(user.id.toString());
+            amp.setUserProperties({
+              name: user.first_name,
+              last_name: user.last_name,
+              username: user.username,
+              language: user.language_code
+            });
+            amp.logEvent('app_opened');
+          } catch (e) {
+            console.error("Amplitude init error:", e);
+          }
+        }
+
+        // Уведомление владельца о новом пользователе
+        const hasVisitedBefore = localStorage.getItem('vera_visited');
+        if (!hasVisitedBefore) {
+           fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               chat_id: ADMIN_CHAT_ID,
+               text: `✨ *Новая душа в VERA*\n\n👤 Имя: ${user.first_name} ${user.last_name || ''}\n🔗 Юзер: @${user.username || 'скрыт'}\n🆔 ID: \`${user.id}\`\n🌍 Язык: ${user.language_code}`,
+               parse_mode: 'Markdown'
+             })
+           }).catch(err => console.error("Notify error", err));
+           localStorage.setItem('vera_visited', 'true');
+        }
       }
     }
 
-    // Load data
     const savedFavs = localStorage.getItem('vera_favorites');
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     
@@ -65,13 +106,14 @@ function App() {
 
     const checkTime = () => {
       const hour = new Date().getHours();
-      if (hour >= 22 || hour < 6) setIsNight(true);
+      setIsNight(hour >= 22 || hour < 6);
     };
     checkTime();
-    
+  }, []);
+
+  useEffect(() => {
     if (isNight) document.body.classList.add('night-mode');
     else document.body.classList.remove('night-mode');
-
   }, [isNight]);
 
   useEffect(() => {
@@ -84,56 +126,38 @@ function App() {
                 const msg = await generateDailyMessage();
                 setDailyMessage(msg);
                 setShowDailyMessage(true);
+                logEvent('daily_message_viewed');
             } catch (e) {
-                console.error("Failed to fetch daily message", e);
+                console.error(e);
             }
         }
     };
     checkDailyMessage();
   }, [screen]);
 
-  useEffect(() => {
-    localStorage.setItem('vera_favorites', JSON.stringify(favorites));
-  }, [favorites]);
-
-  useEffect(() => {
-    localStorage.setItem('vera_journal', JSON.stringify(journal));
-  }, [journal]);
-
-  // Actions
   const handleOnboardingFinish = () => {
     localStorage.setItem('vera_onboarded_final', 'true');
     setScreen('HOME');
-  };
-  
-  const handleCloseDailyMessage = () => {
-      setShowDailyMessage(false);
-      localStorage.setItem('vera_daily_date', new Date().toDateString());
-  };
-
-  const handleToggleNight = () => {
-    setIsNight(!isNight);
-  };
-
-  const createContentObject = (text: string, type: VERAContent['type'], tag: string): VERAContent => {
-    return {
-      id: uuidv4(),
-      text,
-      blocks: text.split(/\n\s*\n/).filter(b => b.trim().length > 0),
-      type,
-      tag,
-      timestamp: Date.now(),
-      isFavorite: false
-    };
+    logEvent('onboarding_complete');
   };
 
   const handleGenerateWord = async (situation: string) => {
     if (!situation.trim()) return;
     setLoading(true);
+    logEvent('generate_word', { situation });
     try {
       const text = await generateVeraWord(situation);
-      const tag = SITUATIONS.some(s => s.text === situation) ? situation : "Личное";
-      setCurrentWord(createContentObject(text, 'word', tag));
+      const tag = SITUATIONS.find(s => s.text === situation)?.text || "Личное";
+      const content: VERAContent = {
+        id: uuidv4(),
+        text,
+        blocks: text.split(/\n\s*\n/).filter(b => b.trim()),
+        type: 'word',
+        tag,
+        timestamp: Date.now(),
+        isFavorite: false
+      };
+      setCurrentWord(content);
     } catch (e) {
       console.error(e);
     } finally {
@@ -145,9 +169,19 @@ function App() {
     setLoading(true);
     const type = LETTER_TYPES.find(t => t.id === typeId);
     if (!type) return;
+    logEvent('generate_letter', { type: typeId });
     try {
-      const text = await generateVeraLetter(type.label, isNight ? 'на ночь, очень мягко' : 'глубоко и искренне');
-      setCurrentWord(createContentObject(text, 'letter', type.label));
+      const text = await generateVeraLetter(type.label, isNight ? 'ночное, тихое' : 'дневное, поддерживающее');
+      const content: VERAContent = {
+        id: uuidv4(),
+        text,
+        blocks: text.split(/\n\s*\n/).filter(b => b.trim()),
+        type: 'letter',
+        tag: type.label,
+        timestamp: Date.now(),
+        isFavorite: false
+      };
+      setCurrentWord(content);
     } catch (e) {
       console.error(e);
     } finally {
@@ -157,18 +191,21 @@ function App() {
 
   const handleJournalSubmit = async (text: string) => {
     setLoading(true);
+    logEvent('journal_submit');
     try {
       const responseText = await generateJournalResponse(text);
-      const veraResponse = createContentObject(responseText, 'journal_response', 'Дневник');
-      
-      const newEntry: JournalEntry = {
+      const veraResponse: VERAContent = {
         id: uuidv4(),
-        userText: text,
-        veraResponse,
-        timestamp: Date.now()
+        text: responseText,
+        blocks: responseText.split(/\n\s*\n/).filter(b => b.trim()),
+        type: 'journal_response',
+        tag: 'Дневник',
+        timestamp: Date.now(),
+        isFavorite: false
       };
-      
+      const newEntry: JournalEntry = { id: uuidv4(), userText: text, veraResponse, timestamp: Date.now() };
       setJournal(prev => [newEntry, ...prev]);
+      localStorage.setItem('vera_journal', JSON.stringify([newEntry, ...journal]));
     } catch (e) {
       console.error(e);
     } finally {
@@ -177,79 +214,58 @@ function App() {
   };
 
   const toggleFavorite = (content: VERAContent) => {
-    const exists = favorites.find(f => f.id === content.id);
-    if (exists) {
-      setFavorites(prev => prev.filter(f => f.id !== content.id));
-      if (currentWord?.id === content.id) {
-        setCurrentWord({ ...currentWord, isFavorite: false });
-      }
+    const isFav = favorites.some(f => f.id === content.id);
+    let newFavs;
+    if (isFav) {
+      newFavs = favorites.filter(f => f.id !== content.id);
+      logEvent('favorite_removed');
     } else {
-      setFavorites(prev => [{ ...content, isFavorite: true }, ...prev]);
-      if (currentWord?.id === content.id) {
-        setCurrentWord({ ...currentWord, isFavorite: true });
-      }
+      newFavs = [{ ...content, isFavorite: true }, ...favorites];
+      logEvent('favorite_added');
+    }
+    setFavorites(newFavs);
+    localStorage.setItem('vera_favorites', JSON.stringify(newFavs));
+    if (currentWord?.id === content.id) {
+        setCurrentWord({ ...currentWord, isFavorite: !isFav });
     }
   };
 
-  if (screen === 'ONBOARDING') return (
-    <>
-        <LivingBackground isNight={isNight} />
-        <OnboardingScreen onFinish={handleOnboardingFinish} />
-    </>
-  );
+  if (screen === 'ONBOARDING') return <OnboardingScreen onFinish={handleOnboardingFinish} />;
 
   return (
-    <div className={`h-screen flex flex-col ${isNight ? 'text-[#EAE0D5]' : 'text-[#4A4238]'}`}>
+    <div className={`h-screen flex flex-col relative ${isNight ? 'bg-vera-night text-vera-nightText' : 'bg-vera-bg text-vera-text'}`}>
       <LivingBackground isNight={isNight} />
-      
       {isBreathing && <BreathingOverlay onClose={() => setIsBreathing(false)} isNight={isNight} />}
-      {showDailyMessage && dailyMessage && <DailyMessageOverlay message={dailyMessage} onClose={handleCloseDailyMessage} isNight={isNight} />}
-      
-      <div className="flex-1 relative overflow-hidden">
-         {screen === 'HOME' && (
-            <HomeScreen 
-                isNight={isNight} 
-                loading={loading}
-                userName={userName}
-                currentWord={currentWord}
-                onGenerateWord={handleGenerateWord}
-                onClearWord={() => setCurrentWord(null)}
-                onToggleFavorite={toggleFavorite}
-                onBreath={() => setIsBreathing(true)}
-                onToggleNight={handleToggleNight}
-            />
-         )}
-         {screen === 'LETTERS' && (
-             <LettersScreen 
-                isNight={isNight}
-                loading={loading}
-                currentWord={currentWord}
-                onGenerateLetter={handleGenerateLetter}
-                onClearWord={() => setCurrentWord(null)}
-                onToggleFavorite={toggleFavorite}
-             />
-         )}
-         {screen === 'IMAGES' && (
-             <ImagesScreen isNight={isNight} />
-         )}
-         {screen === 'JOURNAL' && (
-             <JournalScreen 
-                isNight={isNight} 
-                loading={loading} 
-                journal={journal} 
-                onSubmit={handleJournalSubmit} 
-             />
-         )}
-         {screen === 'LIBRARY' && (
-             <LibraryScreen 
-                isNight={isNight} 
-                favorites={favorites} 
-                onToggleFavorite={toggleFavorite} 
-             />
-         )}
+      {showDailyMessage && dailyMessage && (
+          <DailyMessageOverlay 
+            message={dailyMessage} 
+            onClose={() => { setShowDailyMessage(false); localStorage.setItem('vera_daily_date', new Date().toDateString()); }} 
+            isNight={isNight} 
+          />
+      )}
+
+      <div className="flex-1 overflow-hidden relative">
+        {screen === 'HOME' && (
+          <HomeScreen 
+            isNight={isNight} loading={loading} userName={userName} currentWord={currentWord}
+            onGenerateWord={handleGenerateWord} onClearWord={() => setCurrentWord(null)}
+            onToggleFavorite={toggleFavorite} onBreath={() => { setIsBreathing(true); logEvent('breath_exercise'); }}
+            onToggleNight={() => setIsNight(!isNight)}
+          />
+        )}
+        {screen === 'LETTERS' && (
+          <LettersScreen 
+            isNight={isNight} loading={loading} currentWord={currentWord}
+            onGenerateLetter={handleGenerateLetter} onClearWord={() => setCurrentWord(null)}
+            onToggleFavorite={toggleFavorite}
+          />
+        )}
+        {screen === 'IMAGES' && <ImagesScreen isNight={isNight} />}
+        {screen === 'JOURNAL' && <JournalScreen isNight={isNight} loading={loading} journal={journal} onSubmit={handleJournalSubmit} />}
+        {screen === 'LIBRARY' && <LibraryScreen isNight={isNight} favorites={favorites} onToggleFavorite={toggleFavorite} />}
       </div>
-      
-      <TabBar activeScreen={screen} onNavigate={(s) => { setScreen(s); setCurrentWord(null); }} isNight={isNight} />
+
+      <TabBar activeScreen={screen} onNavigate={(s) => { setScreen(s); setCurrentWord(null); logEvent('tab_switch', { to: s }); }} isNight={isNight} />
     </div>
   );
 }
