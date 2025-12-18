@@ -5,6 +5,7 @@ import { VERAContent, SITUATIONS } from '../types';
 interface HomeScreenProps {
   isNight: boolean;
   loading: boolean;
+  userName?: string;
   currentWord: VERAContent | null;
   onGenerateWord: (situation: string) => Promise<void>;
   onClearWord: () => void;
@@ -16,6 +17,7 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   isNight,
   loading,
+  userName,
   currentWord,
   onGenerateWord,
   onClearWord,
@@ -78,8 +80,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
          </button>
       </div>
 
-      {/* Editorial Header */}
+      {/* Editorial Header with Personalized Welcome */}
       <div className="text-center mb-10 relative">
+          <p className="font-serif text-[10px] uppercase tracking-[0.4em] text-vera-textLight opacity-60 mb-2">
+              {userName ? `Здравствуй, ${userName} ✨` : 'Здравствуй ✨'}
+          </p>
           <h1 className="font-altSerif text-[5rem] leading-[0.8] tracking-tighter text-vera-text opacity-90 italic">
               Vera
           </h1>
@@ -91,7 +96,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* Main Input Area - "The Paper" */}
       <div className={`relative group transition-all duration-700 mb-10 ${isFocused ? 'scale-[1.02]' : 'scale-100'}`}>
-         {/* Glow effect behind */}
          <div className={`absolute -inset-1 rounded-[40px] blur-xl opacity-40 transition duration-1000 group-hover:opacity-60 ${isNight ? 'bg-gradient-to-r from-vera-rose/20 to-purple-900/20' : 'bg-gradient-to-r from-vera-peach/50 to-vera-rose/50'}`}></div>
          
          <div className={`relative rounded-[36px] overflow-hidden backdrop-blur-xl transition-colors duration-500 border ${isNight ? 'bg-white/5 border-white/10' : 'bg-white/60 border-white/40 shadow-[0_8px_32px_rgba(231,200,192,0.15)]'}`}>
@@ -105,7 +109,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                style={{ fontStyle: homeInput ? 'normal' : 'italic' }}
             />
             
-            {/* Action Bar inside the card */}
             <div className={`flex justify-between items-center px-4 pb-4 transition-opacity duration-500 ${homeInput ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                  <button onClick={() => setHomeInput('')} className="p-4 text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">
                      Стереть

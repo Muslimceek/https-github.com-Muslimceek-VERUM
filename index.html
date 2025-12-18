@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>VERA</title>
+    <!-- ПОДКЛЮЧЕНИЕ TELEGRAM SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,14 +17,14 @@
           extend: {
             colors: {
               vera: {
-                bg: '#FFFCF8', // Warm Milk
-                beige: '#F2E8E4', // Soft Blush
-                rose: '#F4D4D4', // Pastel Rose
-                peach: '#F8E4D8', // New Peach
-                lavender: '#E8E4F2', // Soft Lavender
-                text: '#4A4238', // Warm Espresso (softer than black)
+                bg: '#FFFCF8',
+                beige: '#F2E8E4',
+                rose: '#F4D4D4',
+                peach: '#F8E4D8',
+                lavender: '#E8E4F2',
+                text: '#4A4238',
                 textLight: '#8C857B',
-                night: '#2A2422', // Warm Dark Chocolate
+                night: '#2A2422',
                 nightText: '#F0E6DD'
               }
             },
@@ -41,76 +43,25 @@
               'float': 'float 7s ease-in-out infinite',
             },
             keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { opacity: '0', transform: 'translateY(30px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-              delicateReveal: {
-                '0%': { opacity: '0', transform: 'translateY(20px)', filter: 'blur(8px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' },
-              },
-              breath: {
-                '0%, 100%': { transform: 'scale(1)' },
-                '50%': { transform: 'scale(1.08)' },
-              },
-              blob: {
-                '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                '33%': { transform: 'translate(40px, -60px) scale(1.15)' },
-                '66%': { transform: 'translate(-30px, 30px) scale(0.9)' },
-                '100%': { transform: 'translate(0px, 0px) scale(1)' },
-              },
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              }
+              fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+              slideUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+              delicateReveal: { '0%': { opacity: '0', transform: 'translateY(20px)', filter: 'blur(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' } },
+              breath: { '0%, 100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.08)' } },
+              blob: { '0%': { transform: 'translate(0px, 0px) scale(1)' }, '33%': { transform: 'translate(40px, -60px) scale(1.15)' }, '66%': { transform: 'translate(-30px, 30px) scale(0.9)' }, '100%': { transform: 'translate(0px, 0px) scale(1)' } },
+              float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
             }
           }
         }
       }
     </script>
     <style>
-      body {
-        background-color: #FFFCF8;
-        color: #4A4238;
-        font-family: 'Inter', sans-serif;
-        -webkit-tap-highlight-color: transparent;
-        transition: background-color 0.8s ease, color 0.8s ease;
-      }
-      
-      body.night-mode {
-        background-color: #2A2422;
-        color: #F0E6DD;
-      }
-
-      /* Hide scrollbar for clean UI */
-      ::-webkit-scrollbar {
-        width: 0px;
-        background: transparent;
-      }
-      
-      .glass-panel {
-        background: rgba(255, 255, 255, 0.35);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-      }
-      
-      .night-mode .glass-panel {
-        background: rgba(60, 50, 45, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
+      body { background-color: #FFFCF8; color: #4A4238; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; transition: background-color 0.8s ease, color 0.8s ease; }
+      body.night-mode { background-color: #2A2422; color: #F0E6DD; }
+      ::-webkit-scrollbar { width: 0px; background: transparent; }
+      .glass-panel { background: rgba(255, 255, 255, 0.35); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.4); }
+      .night-mode .glass-panel { background: rgba(60, 50, 45, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
   <script type="importmap">
 {

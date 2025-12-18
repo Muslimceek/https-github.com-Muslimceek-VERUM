@@ -14,6 +14,14 @@ import { generateVeraWord, generateVeraLetter, generateJournalResponse, generate
 import { ScreenType, VERAContent, JournalEntry, SITUATIONS, LETTER_TYPES } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: any;
+    };
+  }
+}
+
 function App() {
   // State
   const [screen, setScreen] = useState<ScreenType>('ONBOARDING');
@@ -22,6 +30,7 @@ function App() {
   const [favorites, setFavorites] = useState<VERAContent[]>([]);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [isBreathing, setIsBreathing] = useState(false);
+  const [userName, setUserName] = useState<string>('');
   
   // Daily Message State
   const [dailyMessage, setDailyMessage] = useState<string | null>(null);
@@ -30,8 +39,20 @@ function App() {
   // Content States
   const [currentWord, setCurrentWord] = useState<VERAContent | null>(null);
 
-  // Initialization & Night Mode Check
+  // Initialization & Telegram Check
   useEffect(() => {
+    // 1. Initialize Telegram WebApp
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+      
+      // Get user name from Telegram
+      if (tg.initDataUnsafe?.user?.first_name) {
+        setUserName(tg.initDataUnsafe.user.first_name);
+      }
+    }
+
     // Load data
     const savedFavs = localStorage.getItem('vera_favorites');
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
@@ -42,28 +63,22 @@ function App() {
     const onboarded = localStorage.getItem('vera_onboarded_final');
     if (onboarded) setScreen('HOME');
 
-    // Auto Night Mode (after 22:00 or before 06:00)
     const checkTime = () => {
       const hour = new Date().getHours();
       if (hour >= 22 || hour < 6) setIsNight(true);
     };
     checkTime();
     
-    // Apply body class
     if (isNight) document.body.classList.add('night-mode');
     else document.body.classList.remove('night-mode');
 
   }, [isNight]);
 
-  // Check for Daily Message (Only on Home screen, i.e., post-onboarding)
   useEffect(() => {
     const checkDailyMessage = async () => {
         if (screen !== 'HOME') return;
-
         const today = new Date().toDateString();
         const lastViewed = localStorage.getItem('vera_daily_date');
-        
-        // If we haven't seen a message today
         if (lastViewed !== today) {
             try {
                 const msg = await generateDailyMessage();
@@ -74,8 +89,6 @@ function App() {
             }
         }
     };
-    
-    // Only run if we are settled on HOME (e.g. after refresh or after onboarding finish)
     checkDailyMessage();
   }, [screen]);
 
@@ -178,8 +191,6 @@ function App() {
     }
   };
 
-  // --- RENDER ---
-
   if (screen === 'ONBOARDING') return (
     <>
         <LivingBackground isNight={isNight} />
@@ -188,7 +199,7 @@ function App() {
   );
 
   return (
-    <div className={`h-screen flex flex-col ${isNight ? 'text-[#EAE0D5]' : 'text-[#2A2A2A]'}`}>
+    <div className={`h-screen flex flex-col ${isNight ? 'text-[#EAE0D5]' : 'text-[#4A4238]'}`}>
       <LivingBackground isNight={isNight} />
       
       {isBreathing && <BreathingOverlay onClose={() => setIsBreathing(false)} isNight={isNight} />}
@@ -199,6 +210,7 @@ function App() {
             <HomeScreen 
                 isNight={isNight} 
                 loading={loading}
+                userName={userName}
                 currentWord={currentWord}
                 onGenerateWord={handleGenerateWord}
                 onClearWord={() => setCurrentWord(null)}
